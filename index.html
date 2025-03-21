@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Camera App</title>
+    <link rel="stylesheet" href="camera.css">
+</head>
+<body>
+    <div class="container">
+        <div class="iphone" id="iphone">
+            <div class="status-bar">
+                <span class="time"></span>
+                <div class="status-icons">
+                    <span>📶</span>
+                    <span>📡</span>
+                </div>
+            </div>
+            <div class="dynamic-island" id="dynamicIsland">
+                <span class="countdown-text" id="countdownText" style="display: none;"></span>
+            </div>
+            <div class="camera-app">
+                <div class="camera-view">
+                    <video id="video" autoplay muted></video>
+                    <canvas id="canvas" style="display: none;"></canvas>
+                    <div class="zoom-controls">
+                        <span class="zoom-option active" data-zoom="1">1x</span>
+                        <span class="zoom-option" data-zoom="2">2x</span>
+                        <span class="zoom-option" data-zoom="3">3x</span>
+                    </div>
+                    <div class="timer-display" id="timerDisplay"></div>
+                </div>
+                <div class="camera-controls">
+                    <div class="modes-wrapper">
+                        <div class="modes">
+                            <span class="mode" data-mode="video">Video</span>
+                            <span class="mode active" data-mode="photo">Photo</span>
+                            <span class="mode" data-mode="photobooth">Photobooth</span>
+                        </div>
+                    </div>
+                    <div class="control-buttons">
+                        <div class="gallery-preview">
+                            <img id="galleryThumbnail" src="" alt="Gallery Preview">
+                        </div>
+                        <div class="capture-btn" id="captureBtn"></div>
+                        <div class="timer-btn" id="timerBtn">⋮</div>
+                        <div class="timer-menu" id="timerMenu" style="display: none;">
+                            <div class="timer-option" data-time="3">3s</div>
+                            <div class="timer-option" data-time="5">5s</div>
+                            <div class="timer-option" data-time="10">10s</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="photo-gallery" id="photoGallery">
+            <div class="photo-slot" id="photoSlot1">
+                <img src="" alt="Photo 1">
+                <video controls style="display: none;"></video>
+                <div class="delete-btn">X</div>
+            </div>
+            <div class="photo-slot" id="photoSlot2">
+                <img src="" alt="Photo 2">
+                <video controls style="display: none;"></video>
+                <div class="delete-btn">X</div>
+            </div>
+            <div class="photo-slot" id="photoSlot3">
+                <img src="" alt="Photo 3">
+                <video controls style="display: none;"></video>
+                <div class="delete-btn">X</div>
+            </div>
+            <div class="photo-slot" id="photoSlot4">
+                <img src="" alt="Photo 4">
+                <video controls style="display: none;"></video>
+                <div class="delete-btn">X</div>
+            </div>
+        </div>
+        <div class="filter-menu" id="filterMenu" style="display: none;">
+            <div class="filter-list">
+                <div class="filter-category">
+                    <h3>Original</h3>
+                    <div class="filter-option" data-filter="none">No Filter</div>
+                </div>
+                <div class="filter-category">
+                    <h3>Vintage</h3>
+                    <div class="filter-option" data-filter="vintage-gold">Vintage Gold</div>
+                    <div class="filter-option" data-filter="sepia">Sepia</div>
+                    <div class="filter-option" data-filter="classic-blue">Classic Blue</div>
+                </div>
+                <div class="filter-category">
+                    <h3>Modern</h3>
+                    <div class="filter-option" data-filter="bright-clear">Bright Clear</div>
+                    <div class="filter-option" data-filter="pastel">Pastel</div>
+                    <div class="filter-option" data-filter="neon">Neon</div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <script src="camera.js"></script>
+</body>
+</html>
