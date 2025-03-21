@@ -203,7 +203,7 @@ video, canvas {
 
 .camera-controls {
     height: 20%;
-    background: rgba(0, 0, 0, 0.9);
+    background: transparent;
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -229,8 +229,11 @@ video, canvas {
     font-size: 12px;
     text-transform: uppercase;
     white-space: nowrap;
-    padding: 0 10px;
+    padding: 5px 10px;
     justify-content: center;
+    background: #000;
+    border-radius: 20px;
+    border: 2px solid rgba(255, 255, 255, 0.3);
 }
 
 .modes span {
@@ -292,6 +295,7 @@ video, canvas {
     position: absolute;
     left: 50%;
     transform: translateX(-50%);
+    top: 20px; /* Hạ thấp xuống để cân đối */
 }
 
 .capture-btn.recording {
@@ -306,7 +310,7 @@ video, canvas {
 .timer-btn {
     width: 30px;
     height: 30px;
-    background: #fff;
+    background: #00ff00;
     border-radius: 50%;
     display: flex;
     align-items: center;
@@ -315,19 +319,19 @@ video, canvas {
     font-size: 16px;
     color: #000;
     position: absolute;
-    left: calc(50% + 50px);
-    transform: translateX(-50%);
+    left: calc(50% + 80px); /* Dịch về bên trái để cân đối */
+    top: 20px; /* Cùng hàng với nút chụp */
     transition: background 0.3s;
 }
 
 .timer-btn:hover {
-    background: #ddd;
+    background: #00cc00;
 }
 
 .timer-menu {
     position: absolute;
     top: -80px;
-    left: calc(50% + 50px);
+    left: calc(50% + 80px);
     transform: translateX(-50%);
     background: #fff;
     border-radius: 5px;
@@ -362,7 +366,7 @@ video, canvas {
     border: 1px solid rgba(255, 255, 255, 0.2);
     transition: transform 0.2s;
     position: relative;
-    cursor: pointer; /* Thêm con trỏ để báo hiệu có thể nhấn */
+    cursor: pointer;
 }
 
 .photo-slot img, .photo-slot video {
