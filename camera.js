@@ -26,6 +26,7 @@ let timerValue = 0;
 let photoboothTimerValue = 3;
 let currentFilter = 'none';
 let recordingTimer = null;
+let countdownPromise = null;
 
 // Canvas để xem trước bộ lọc
 const previewCanvas = document.createElement('canvas');
@@ -35,7 +36,7 @@ previewCanvas.style.top = '0';
 previewCanvas.style.left = '0';
 previewCanvas.style.width = '100%';
 previewCanvas.style.height = '100%';
-previewCanvas.style.display = 'none';
+previewCanvas.style.display = 'block';
 document.querySelector('.camera-view').appendChild(previewCanvas);
 
 // Hiển thị giờ thực
@@ -86,8 +87,7 @@ function stopCamera() {
 
 // Áp dụng zoom
 function applyZoom() {
-    video.style.transform = `scale(${currentZoom})`;
-    previewCanvas.style.transform = `scale(${currentZoom})`;
+    applyFilterToVideo();
 }
 
 // Hiệu ứng Dynamic Island
@@ -117,6 +117,15 @@ function clearGallery() {
     currentPhotoSlotIndex = 0;
 }
 
+// Reset countdown khi chuyển chế độ
+function resetCountdown() {
+    if (countdownPromise) {
+        countdownText.style.display = 'none';
+        dynamicIsland.classList.remove('expanded');
+        countdownPromise = null;
+    }
+}
+
 // Chuyển chế độ
 modeItems.forEach(mode => {
     mode.addEventListener('click', () => {
@@ -129,11 +138,13 @@ modeItems.forEach(mode => {
         modesWrapper.scrollTo({ left: scrollPosition, behavior: 'smooth' });
 
         if (isRecording) stopRecording();
+        resetCountdown();
         clearGallery();
 
-        filterMenu.style.display = currentMode === 'photobooth' ? 'block' : 'none';
-        previewCanvas.style.display = currentMode === 'photobooth' ? 'block' : 'none';
-        video.style.display = currentMode === 'photobooth' ? 'none' : 'block';
+        filterMenu.style.display = 'block';
+        previewCanvas.style.display = 'block';
+        video.style.display = 'none';
+        applyFilterToVideo();
     });
 });
 
@@ -182,12 +193,20 @@ filterOptions.forEach(option => {
 async function countdown(seconds) {
     dynamicIsland.classList.add('expanded');
     countdownText.style.display = 'block';
-    for (let i = seconds; i >= 0; i--) {
-        countdownText.textContent = i;
-        await new Promise(resolve => setTimeout(resolve, 1000));
-    }
-    countdownText.style.display = 'none';
-    dynamicIsland.classList.remove('expanded');
+    countdownPromise = new Promise(resolve => {
+        let i = seconds;
+        const interval = setInterval(() => {
+            countdownText.textContent = i;
+            if (i <= 0 || currentMode !== 'photobooth') {
+                clearInterval(interval);
+                countdownText.style.display = 'none';
+                dynamicIsland.classList.remove('expanded');
+                resolve();
+            }
+            i--;
+        }, 1000);
+    });
+    return countdownPromise;
 }
 
 // Đếm thời gian quay video
@@ -212,16 +231,91 @@ function stopRecordingTimer() {
     dynamicIsland.classList.remove('expanded');
 }
 
+// Thuật toán cải thiện chất lượng ảnh
+function sharpen(imageData) {
+    const data = imageData.data;
+    const width = imageData.width;
+    const height = imageData.height;
+    const tempData = new Uint8ClampedArray(data);
+
+    for (let i = 0; i < data.length; i += 4) {
+        const x = (i / 4) % width;
+        const y = Math.floor((i / 4) / width);
+        if (x > 0 && x < width - 1 && y > 0 && y < height - 1) {
+            for (let c = 0; c < 3; c++) {
+                const center = tempData[i + c];
+                const laplacian = center * 4 - (
+                    tempData[i + c - width * 4] + // Top
+                    tempData[i + c + width * 4] + // Bottom
+                    tempData[i + c - 4] +         // Left
+                    tempData[i + c + 4]           // Right
+                );
+                data[i + c] = Math.min(255, Math.max(0, center + laplacian * 0.5));
+            }
+        }
+    }
+}
+
+function autoContrast(imageData) {
+    const data = imageData.data;
+    let minR = 255, maxR = 0, minG = 255, maxG = 0, minB = 255, maxB = 0;
+
+    for (let i = 0; i < data.length; i += 4) {
+        minR = Math.min(minR, data[i]);
+        maxR = Math.max(maxR, data[i]);
+        minG = Math.min(minG, data[i + 1]);
+        maxG = Math.max(maxG, data[i + 1]);
+        minB = Math.min(minB, data[i + 2]);
+        maxB = Math.max(maxB, data[i + 2]);
+    }
+
+    for (let i = 0; i < data.length; i += 4) {
+        data[i] = ((data[i] - minR) * 255) / (maxR - minR);
+        data[i + 1] = ((data[i + 1] - minG) * 255) / (maxG - minG);
+        data[i + 2] = ((data[i + 2] - minB) * 255) / (maxB - minB);
+    }
+}
+
+function reduceNoise(imageData) {
+    const data = imageData.data;
+    const width = imageData.width;
+    const height = imageData.height;
+    const tempData = new Uint8ClampedArray(data);
+
+    for (let i = 0; i < data.length; i += 4) {
+        const x = (i / 4) % width;
+        const y = Math.floor((i / 4) / width);
+        if (x > 0 && x < width - 1 && y > 0 && y < height - 1) {
+            for (let c = 0; c < 3; c++) {
+                data[i + c] = (
+                    tempData[i + c] * 0.4 +
+                    (tempData[i + c - width * 4] + tempData[i + c + width * 4] +
+                     tempData[i + c - 4] + tempData[i + c + 4]) * 0.15
+                );
+            }
+        }
+    }
+}
+
 // Áp dụng bộ lọc lên video (xem trước)
 function applyFilterToVideo() {
-    if (currentMode !== 'photobooth') return;
-
     previewCanvas.width = video.videoWidth || 1200;
     previewCanvas.height = video.videoHeight || 900;
 
     function renderFrame() {
         if (!video.srcObject || video.paused) return;
-        previewContext.drawImage(video, 0, 0, previewCanvas.width, previewCanvas.height);
+
+        const srcWidth = previewCanvas.width / currentZoom;
+        const srcHeight = previewCanvas.height / currentZoom;
+        const srcX = (previewCanvas.width - srcWidth) / 2;
+        const srcY = (previewCanvas.height - srcHeight) / 2;
+
+        previewContext.drawImage(
+            video,
+            srcX, srcY, srcWidth, srcHeight,
+            0, 0, previewCanvas.width, previewCanvas.height
+        );
+
         if (currentFilter !== 'none') {
             const imageData = previewContext.getImageData(0, 0, previewCanvas.width, previewCanvas.height);
             applyFilter(imageData);
@@ -234,6 +328,10 @@ function applyFilterToVideo() {
 
 // Áp dụng bộ lọc
 function applyFilter(imageData) {
+    reduceNoise(imageData);
+    sharpen(imageData);
+    autoContrast(imageData);
+
     const data = imageData.data;
     for (let i = 0; i < data.length; i += 4) {
         let r = data[i];
@@ -270,6 +368,37 @@ function applyFilter(imageData) {
                 data[i + 1] = g > 128 ? 255 : g * 0.8;
                 data[i + 2] = b > 128 ? 255 : b * 0.8;
                 break;
+            case 'cyberpunk':
+                data[i] = r * 0.8;
+                data[i + 1] = g * 0.5;
+                data[i + 2] = b * 1.2 + 50;
+                break;
+            case 'dreamy-purple':
+                data[i] = r * 0.7 + 30;
+                data[i + 1] = g * 0.6;
+                data[i + 2] = b * 1.1 + 40;
+                break;
+            case 'retro-wave':
+                data[i] = r * 1.1 + 20;
+                data[i + 1] = g * 0.6;
+                data[i + 2] = b * 0.9 + 30;
+                break;
+            case 'sunset-glow':
+                data[i] = Math.min(255, r * 1.2 + 40);
+                data[i + 1] = g * 0.8 + 20;
+                data[i + 2] = b * 0.6;
+                break;
+            case 'mono-chrome':
+                const gray = 0.2989 * r + 0.5870 * g + 0.1140 * b;
+                data[i] = gray;
+                data[i + 1] = gray;
+                data[i + 2] = gray;
+                break;
+            case 'pop-art':
+                data[i] = r > 128 ? 255 : 0;
+                data[i + 1] = g > 128 ? 255 : 0;
+                data[i + 2] = b > 128 ? 255 : 0;
+                break;
         }
     }
 }
@@ -280,33 +409,30 @@ photoSlots.forEach(slot => {
     const img = slot.querySelector('img');
     const videoEl = slot.querySelector('video');
 
-    // Nhấn vào photo-slot để lưu
     slot.addEventListener('click', (e) => {
         e.stopPropagation();
-        if (e.target === deleteBtn) return; // Không lưu nếu nhấn vào nút X
+        if (e.target === deleteBtn) return;
 
         if (currentMode === 'photobooth') {
             const canvas = document.createElement('canvas');
             const ctx = canvas.getContext('2d');
             const images = Array.from(photoSlots).map(s => s.querySelector('img'));
-        
+
             canvas.width = 1920;
             canvas.height = 1080;
-        
-            // Vẽ nền hồng nhạt cho toàn bộ ảnh
+
             ctx.fillStyle = '#FFC1CC';
             ctx.fillRect(0, 0, canvas.width, canvas.height);
-        
-            // Thêm chữ vào phần thừa bên phải
-            ctx.fillStyle = '#000000'; // Màu chữ: đen
-            ctx.font = 'bold 60px Arial'; // Font chữ: Arial, kích thước 60px, đậm
-            ctx.textAlign = 'center'; // Căn giữa theo chiều ngang
-            ctx.textBaseline = 'middle'; // Căn giữa theo chiều dọc
-            const text = 'Nào hãy xõa đi thoii các bẹn🤩'; // Nội dung chữ
-            const textX = 1200 + (720 / 2); // Vị trí x: giữa phần thừa (1200 + 720/2 = 1560)
-            const textY = canvas.height / 2; // Vị trí y: giữa chiều cao (1080/2 = 540)
-            ctx.fillText(text, textX, textY); // Vẽ chữ
-        
+
+            ctx.fillStyle = '#000000';
+            ctx.font = 'bold 60px Arial';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            const text = 'Nào hãy xõa đi thoii các bẹn🤩';
+            const textX = 1200 + (720 / 2);
+            const textY = canvas.height / 2;
+            ctx.fillText(text, textX, textY);
+
             let loadedImages = 0;
             images.forEach((img, index) => {
                 if (img.src) {
@@ -332,7 +458,7 @@ photoSlots.forEach(slot => {
                         if (loadedImages === images.filter(i => i.src).length) {
                             const link = document.createElement('a');
                             link.href = canvas.toDataURL('image/png');
-                            link.download = `photbooth_${Date.now()}.png`;
+                            link.download = `photobooth_${Date.now()}.png`;
                             link.click();
                         }
                     };
@@ -346,8 +472,7 @@ photoSlots.forEach(slot => {
                     }
                 }
             });
-        }
-        else if (img.src && img.style.display === 'block') {
+        } else if (img.src && img.style.display === 'block') {
             const link = document.createElement('a');
             link.href = img.src;
             link.download = `photo_${Date.now()}.png`;
@@ -360,14 +485,12 @@ photoSlots.forEach(slot => {
         }
     });
 
-    // Nhấn nút X để xóa
     deleteBtn.addEventListener('click', (e) => {
         e.stopPropagation();
         img.style.display = 'none';
         img.src = '';
         videoEl.style.display = 'none';
         videoEl.src = '';
-        // Cập nhật gallery thumbnail
         const lastVisibleSlot = Array.from(photoSlots).reverse().find(s => s.querySelector('img').style.display === 'block');
         if (lastVisibleSlot) {
             galleryThumbnail.src = lastVisibleSlot.querySelector('img').src;
@@ -406,7 +529,18 @@ function capturePhoto() {
     const context = canvas.getContext('2d');
     canvas.width = 1920;
     canvas.height = 1080;
-    context.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+    const srcWidth = video.videoWidth / currentZoom;
+    const srcHeight = video.videoHeight / currentZoom;
+    const srcX = (video.videoWidth - srcWidth) / 2;
+    const srcY = (video.videoHeight - srcHeight) / 2;
+
+    context.drawImage(
+        video,
+        srcX, srcY, srcWidth, srcHeight,
+        0, 0, canvas.width, canvas.height
+    );
+
     if (currentFilter !== 'none') {
         const imageData = context.getImageData(0, 0, canvas.width, canvas.height);
         applyFilter(imageData);
@@ -419,12 +553,25 @@ function capturePhoto() {
 // Chụp Photobooth
 async function capturePhotobooth() {
     for (let i = 0; i < 4; i++) {
+        if (currentMode !== 'photobooth') break;
         await countdown(photoboothTimerValue);
+        if (currentMode !== 'photobooth') break;
         animateDynamicIsland();
         const context = canvas.getContext('2d');
         canvas.width = video.videoWidth;
         canvas.height = video.videoHeight;
-        context.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+        const srcWidth = video.videoWidth / currentZoom;
+        const srcHeight = video.videoHeight / currentZoom;
+        const srcX = (video.videoWidth - srcWidth) / 2;
+        const srcY = (video.videoHeight - srcHeight) / 2;
+
+        context.drawImage(
+            video,
+            srcX, srcY, srcWidth, srcHeight,
+            0, 0, canvas.width, canvas.height
+        );
+
         if (currentFilter !== 'none') {
             const imageData = context.getImageData(0, 0, canvas.width, canvas.height);
             applyFilter(imageData);
@@ -436,10 +583,20 @@ async function capturePhotobooth() {
     currentPhotoSlotIndex = 0;
 }
 
-// Bắt đầu quay video
+// Bắt đầu quay video (ghi từ canvas)
 async function startRecording() {
-    recordedChunks = [];
-    mediaRecorder = new MediaRecorder(stream);
+    const canvasStream = previewCanvas.captureStream(30); // 30 FPS
+    const audioTracks = stream.getAudioTracks();
+    if (audioTracks.length > 0) {
+        const audioStream = new MediaStream(audioTracks);
+        const combinedStream = new MediaStream([...canvasStream.getVideoTracks(), ...audioStream.getAudioTracks()]);
+        recordedChunks = [];
+        mediaRecorder = new MediaRecorder(combinedStream);
+    } else {
+        recordedChunks = [];
+        mediaRecorder = new MediaRecorder(canvasStream);
+    }
+
     mediaRecorder.ondataavailable = (event) => recordedChunks.push(event.data);
     mediaRecorder.onstop = () => {
         const blob = new Blob(recordedChunks, { type: 'video/webm' });
