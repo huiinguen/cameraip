@@ -256,9 +256,9 @@ video, canvas {
 .control-buttons {
     display: flex;
     align-items: center;
-    justify-content: space-between;
+    justify-content: space-between; /* Căn các phần tử cách đều */
     width: 100%;
-    margin-top: 20px;
+    margin-top: 10px; /* Giảm margin-top để nút không bị đẩy xuống quá thấp */
     position: relative;
 }
 
@@ -292,10 +292,7 @@ video, canvas {
     cursor: pointer;
     transition: transform 0.2s, background 0.3s, border-color 0.3s;
     box-shadow: 0 2px 5px rgba(0, 0, 0, 0.3);
-    position: absolute;
-    left: 50%;
-    transform: translateX(-50%);
-    top: 20px; /* Hạ thấp xuống để cân đối */
+    /* Bỏ position: absolute để nút nằm trong bố cục flex */
 }
 
 .capture-btn.recording {
@@ -304,7 +301,7 @@ video, canvas {
 }
 
 .capture-btn:active {
-    transform: translateX(-50%) scale(0.9);
+    transform: scale(0.9);
 }
 
 .timer-btn {
@@ -318,9 +315,7 @@ video, canvas {
     cursor: pointer;
     font-size: 16px;
     color: #000;
-    position: absolute;
-    left: calc(50% + 80px); /* Dịch về bên trái để cân đối */
-    top: 20px; /* Cùng hàng với nút chụp */
+    /* Bỏ position: absolute để nút nằm trong bố cục flex */
     transition: background 0.3s;
 }
 
@@ -331,8 +326,7 @@ video, canvas {
 .timer-menu {
     position: absolute;
     top: -80px;
-    left: calc(50% + 80px);
-    transform: translateX(-50%);
+    right: 10px; /* Đặt menu ở bên phải, căn chỉnh hợp lý */
     background: #fff;
     border-radius: 5px;
     box-shadow: 0 2px 5px rgba(0, 0, 0, 0.3);
