@@ -14,6 +14,7 @@ const timerDisplay = document.getElementById('timerDisplay');
 const filterMenu = document.getElementById('filterMenu');
 const filterOptions = document.querySelectorAll('.filter-option');
 const photoSlots = document.querySelectorAll('.photo-slot');
+const iphone = document.getElementById('iphone');
 
 let stream = null;
 let mediaRecorder = null;
@@ -48,7 +49,43 @@ function updateTime() {
 }
 updateTime();
 setInterval(updateTime, 60000);
+// Hàm điều chỉnh kích thước iPhone dựa trên kích thước màn hình
+function adjustIphoneSize() {
+    const screenWidth = window.innerWidth;
+    const screenHeight = window.innerHeight;
 
+    // Kích thước mặc định của iPhone
+    const defaultWidth = 360; // px
+    const defaultHeight = 700; // px
+
+    // Tính tỷ lệ dựa trên chiều rộng màn hình
+    let scale = 1; // Tỷ lệ mặc định
+
+    // Nếu màn hình nhỏ hơn 768px (tablet hoặc mobile)
+    if (screenWidth < 768) {
+        scale = screenWidth / (defaultWidth + 40); // +40 để chừa khoảng cách hai bên
+    }
+    // Nếu màn hình từ 768px đến 1200px
+    else if (screenWidth >= 768 && screenWidth < 1200) {
+        scale = 0.9; // Giảm nhẹ kích thước
+    }
+    // Nếu màn hình lớn hơn 1200px, giữ nguyên hoặc tăng nhẹ
+    else {
+        scale = Math.min(screenWidth / 1440, 1.2); // Giới hạn tỷ lệ tối đa là 1.2
+    }
+
+    // Đảm bảo iPhone không bị quá cao so với màn hình
+    const maxHeightScale = (screenHeight - 100) / defaultHeight; // -100 để chừa khoảng cách trên dưới
+    scale = Math.min(scale, maxHeightScale);
+
+    // Áp dụng tỷ lệ cho iPhone
+    iphone.style.transform = `scale(${scale})`;
+    iphone.style.transformOrigin = 'center center';
+
+    // Điều chỉnh container để căn giữa
+    const container = document.querySelector('.container');
+    container.style.height = `${screenHeight}px`;
+}
 // Khởi động camera
 async function startCamera() {
     if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
@@ -138,7 +175,8 @@ modeItems.forEach(mode => {
         modesWrapper.scrollTo({ left: scrollPosition, behavior: 'smooth' });
 
         if (isRecording) stopRecording();
-        resetCountdown();
+        stopRecordingTimer(); // Ensure recording timer is stopped
+        resetCountdown();     // Reset any existing countdown
         clearGallery();
 
         filterMenu.style.display = 'block';
@@ -552,6 +590,8 @@ function capturePhoto() {
 
 // Chụp Photobooth
 async function capturePhotobooth() {
+    stopRecordingTimer(); // Clear any previous recording timer
+    resetCountdown();     // Clear any previous countdown
     for (let i = 0; i < 4; i++) {
         if (currentMode !== 'photobooth') break;
         await countdown(photoboothTimerValue);
